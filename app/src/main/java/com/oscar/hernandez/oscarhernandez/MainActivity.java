@@ -9,6 +9,7 @@ import android.support.v7.widget.RecyclerView;
 import android.util.Log;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.Switch;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -56,6 +57,7 @@ public class MainActivity extends AppCompatActivity {
                 Log.e("", e.getMessage());
                 return;
             }
+            settings.clear();
 
             for (DocumentSnapshot document : documentSnapshots) {
 
@@ -166,13 +168,30 @@ public class MainActivity extends AppCompatActivity {
 
         TextView settingDescription;
         TextView settingValue;
+        TextView bgChangeSetting;
 
+        Switch viewSettingValue;
+
+        boolean showSettingValue = false;
 
         public ViewHolder(View itemView) {
             super(itemView);
 
             settingDescription = itemView.findViewById(R.id.descriptionView);
             settingValue = itemView.findViewById(R.id.valueView);
+            bgChangeSetting = itemView.findViewById(R.id.bgChangeSetting);
+            viewSettingValue = itemView.findViewById(R.id.showInfo);
+
+            viewSettingValue.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    showSettingValue = !showSettingValue;
+
+                    adapter.notifyDataSetChanged();
+                }
+            });
+
+
         }
     }
 
@@ -186,22 +205,43 @@ public class MainActivity extends AppCompatActivity {
         }
 
         @Override
-        public void onBindViewHolder(@NonNull ViewHolder holder, final int position)
+        public void onBindViewHolder(@NonNull final ViewHolder holder, final int position)
         {
             setting setting = settings.get(position);
 
             holder.settingDescription.setText(setting.getDescription());
-            holder.settingValue.setText(Boolean.toString(setting.isValue()));
 
-            // String recentName = SelectRoomActivity.recentRooms.get(position);
-          // holder.textView.setText(recentName);
+            if (holder.showSettingValue)
+               holder.settingValue.setText(Boolean.toString(setting.isValue()));
+            else
+                holder.settingValue.setText("");
 
-          // holder.textView.setOnClickListener(new View.OnClickListener() {
-          //     @Override
-          //     public void onClick(View view) {
-          //         RecentRoomClicked(position);
-          //     }
-          // });
+            holder.bgChangeSetting.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View view) {
+                    if (holder.showSettingValue)
+                    {
+                        db.collection(SETTINGS).document(settings.get(position).getName()).get()
+                                .addOnSuccessListener(new OnSuccessListener<DocumentSnapshot>() {
+                                    @Override
+                                    public void onSuccess(DocumentSnapshot documentSnapshot) {
+                                        if (documentSnapshot.exists())
+                                        {
+                                            Map<String, Object> newValue = documentSnapshot.getData();
+                                            boolean realValue = !documentSnapshot.getBoolean(VALUE);
+                                            newValue.put(VALUE, realValue);
+
+                                            db.collection(SETTINGS).document(settings.get(position).getName()).set(newValue);
+
+                                            Toast.makeText(MainActivity.this, settings.get(position).getDescription() + " Value changed from " + Boolean.toString(!realValue) + " to " +  Boolean.toString(realValue), Toast.LENGTH_SHORT).show();
+
+                                            adapter.notifyDataSetChanged();
+                                        }
+                                    }
+                                });
+                    }
+                }
+            });
         }
 
         @Override
