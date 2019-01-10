@@ -1,9 +1,15 @@
 package com.oscar.hernandez.oscarhernandez;
 
+import android.renderscript.Sampler;
 import android.support.annotation.NonNull;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.support.v7.widget.LinearLayoutManager;
+import android.support.v7.widget.RecyclerView;
 import android.util.Log;
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import com.google.android.gms.tasks.OnFailureListener;
@@ -11,9 +17,14 @@ import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.firebase.firestore.DocumentChange;
 import com.google.firebase.firestore.DocumentReference;
 import com.google.firebase.firestore.DocumentSnapshot;
+import com.google.firebase.firestore.EventListener;
 import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.firebase.firestore.FirebaseFirestoreException;
+import com.google.firebase.firestore.QuerySnapshot;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 public class MainActivity extends AppCompatActivity {
@@ -30,7 +41,34 @@ public class MainActivity extends AppCompatActivity {
     public static final String FLIGHT = "allow_flight";
 
 
+    Adapter adapter;
+    private RecyclerView settingsView;
+
+    List<setting> settings = new ArrayList<>();
+
     private FirebaseFirestore db = FirebaseFirestore.getInstance();
+
+    EventListener<QuerySnapshot> settingListener = new EventListener<QuerySnapshot>() {
+        @Override
+        public void onEvent(QuerySnapshot documentSnapshots, FirebaseFirestoreException e) {
+
+            if (e != null) {
+                Log.e("", e.getMessage());
+                return;
+            }
+
+            for (DocumentSnapshot document : documentSnapshots) {
+
+                String name = document.getString(NAME);
+                boolean value = document.getBoolean(VALUE);
+                String description = document.getString(DESCRIPTION);
+
+                settings.add(new setting(name, value, description));
+            }
+
+            adapter.notifyDataSetChanged();
+        }
+    };
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -39,6 +77,15 @@ public class MainActivity extends AppCompatActivity {
 
         LoadDefaultSettings();
 
+        adapter = new Adapter();
+
+        settingsView = findViewById(R.id.settingsView);
+        settingsView.setLayoutManager(new LinearLayoutManager(this));
+        settingsView.setAdapter(adapter);
+
+
+
+        db.collection(SETTINGS).addSnapshotListener(settingListener);
     }
 
     private void LoadDefaultSettings() {
@@ -111,5 +158,56 @@ public class MainActivity extends AppCompatActivity {
                         Log.e("", e.toString());
                     }
                 });
+    }
+
+    //Rooms listener
+
+    public class ViewHolder extends RecyclerView.ViewHolder {
+
+        TextView settingDescription;
+        TextView settingValue;
+
+
+        public ViewHolder(View itemView) {
+            super(itemView);
+
+            settingDescription = itemView.findViewById(R.id.descriptionView);
+            settingValue = itemView.findViewById(R.id.valueView);
+        }
+    }
+
+    public class Adapter extends RecyclerView.Adapter<ViewHolder>
+    {
+        @NonNull
+        @Override
+        public ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+            View itemView = getLayoutInflater().inflate(R.layout.setting, parent, false);
+            return new ViewHolder(itemView);
+        }
+
+        @Override
+        public void onBindViewHolder(@NonNull ViewHolder holder, final int position)
+        {
+            setting setting = settings.get(position);
+
+            holder.settingDescription.setText(setting.getDescription());
+            holder.settingValue.setText(Boolean.toString(setting.isValue()));
+
+            // String recentName = SelectRoomActivity.recentRooms.get(position);
+          // holder.textView.setText(recentName);
+
+          // holder.textView.setOnClickListener(new View.OnClickListener() {
+          //     @Override
+          //     public void onClick(View view) {
+          //         RecentRoomClicked(position);
+          //     }
+          // });
+        }
+
+        @Override
+        public int getItemCount()
+        {
+            return settings.size();
+        }
     }
 }
